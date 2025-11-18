@@ -14,7 +14,7 @@ function unknown_command() {
   show_usage
 }
 
-function fetch_unpack_csv() {
+function fetch_and_generate() {
   local month="$1"
 
   if [ -z "$month" ]; then
@@ -26,20 +26,18 @@ function fetch_unpack_csv() {
   url=$(awk "{printf \"$URL_FMT\", \$1}" <<<"$month")
 
   local archive
-  archive=$(awk "{printf \"$ARCHIVE_FMT\", \$1}" <<< "$month")
+  archive=$(awk "{printf \"$ARCHIVE_FMT\", \$1}" <<<"$month")
 
   local csv
-  csv=$(awk '{sub(/\.gz$/, "", $0); print}' <<< "$archive" )
+  csv=$(awk '{sub(/\.gz$/, "", $0); print}' <<<"$archive")
 
   echo "Downloading: $url to $archive"
   curl "$url" --output "$archive"
 
-  gzip -d < "$archive" > "$csv"
+  gzip -d <"$archive" >"$csv"
   rm "$archive"
-}
 
-function fetch_and_generate() {
-  fetch_unpack_csv "$1"
+  CSV_FILE="$csv" go generate ./...
 }
 
 function run() {
@@ -51,17 +49,8 @@ function run() {
   echo ""
 
   case $main_cmd in
-  run:dev)
-    run_dev "$@"
-    ;;
   code:fetch-and-generate)
     fetch_and_generate "$@"
-    ;;
-  cert:install)
-    cert_install "$@"
-    ;;
-  key:generate_ec)
-    key_gen_ec "$@"
     ;;
   *)
     unknown_command "$main_cmd"
