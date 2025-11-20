@@ -2,11 +2,11 @@
 package generated
 
 import (
-	"net/netip"
+	"github.com/yandzee/go-ipdb/internal/types"
 )
 
 type AddrRangeCountry struct {
-	RangeStart  netip.Addr
-	RangeEnd    netip.Addr
+	RangeStart  types.Uint128
+	RangeEnd    types.Uint128
 	CountryCode string
 }
