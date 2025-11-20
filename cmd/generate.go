@@ -11,6 +11,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"text/template"
 
 	"github.com/yandzee/go-ipdb/generated"
 	"github.com/yandzee/go-ipdb/internal/types"
@@ -24,7 +25,7 @@ type TemplateEntry struct {
 
 type TemplateVariables struct {
 	Variable string
-	Entries  []TemplateEntry
+	Entries  string
 }
 
 func main() {
@@ -34,23 +35,23 @@ func main() {
 		os.Exit(1)
 	}
 
-	// tpl, err := template.ParseFiles("../internal/templates/iprange.go.tpl")
-	// if err != nil {
-	// 	fmt.Fprintf(os.Stderr, "Failed to parse iprange.go.tpl: %v\n", err)
-	// 	os.Exit(1)
-	// }
-	//
-	// v4file, err := os.OpenFile("../generated/v4.go", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-	// if err != nil {
-	// 	fmt.Fprintf(os.Stderr, "Failed to open v4.go: %v\n", err)
-	// 	os.Exit(1)
-	// }
-	//
-	// v6file, err := os.OpenFile("../generated/v6.go", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-	// if err != nil {
-	// 	fmt.Fprintf(os.Stderr, "Failed to open v6.go: %v\n", err)
-	// 	os.Exit(1)
-	// }
+	tpl, err := template.ParseFiles("../internal/templates/iprange.go.tpl")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to parse iprange.go.tpl: %v\n", err)
+		os.Exit(1)
+	}
+
+	v4file, err := os.OpenFile("../generated/v4.go", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to open v4.go: %v\n", err)
+		os.Exit(1)
+	}
+
+	v6file, err := os.OpenFile("../generated/v6.go", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to open v6.go: %v\n", err)
+		os.Exit(1)
+	}
 
 	fmt.Printf("About to parse %s\n", fname)
 
@@ -97,13 +98,19 @@ func main() {
 		os.Exit(1)
 	}
 
+	v4out := bufio.NewWriter(v4file)
+	v6out := bufio.NewWriter(v6file)
+
 	b64, err := entriesToB64(v4entries)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "v4 entriesToB64 err: %v\n", err)
 		os.Exit(1)
 	}
 
-	fmt.Printf("V4 base64 size: %d\n", len(b64))
+	_ = tpl.ExecuteTemplate(v4out, "iprange", TemplateVariables{
+		Variable: "V4Entries",
+		Entries:  b64,
+	})
 
 	b64, err = entriesToB64(v6entries)
 	if err != nil {
@@ -111,50 +118,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("V6 base64 size: %d\n", len(b64))
+	_ = tpl.ExecuteTemplate(v6out, "iprange", TemplateVariables{
+		Variable: "V6Entries",
+		Entries:  b64,
+	})
 
-	// sortRanges(&v4entries)
-	// sortRanges(&v6entries)
-	//
-	// compressedv4
-	// compressor := gzip.NewWriter()
-	// enc := gob.NewEncoder(compressor)
-	// for _, e := range {
-	//
-	// }
-	//
-	// v4vars := TemplateVariables{
-	// 	Variable: "V4Ranges",
-	// }
-	//
-	// v6vars := TemplateVariables{
-	// 	Variable: "V6Ranges",
-	// }
-	//
-	// for _, r := range stash.v4 {
-	// 	v4vars.Entries = append(v4vars.Entries, TemplateEntry{
-	// 		RangeStart:  r.RangeStart.String(),
-	// 		RangeEnd:    r.RangeEnd.String(),
-	// 		CountryCode: r.CountryCode,
-	// 	})
-	// }
-	//
-	// for _, r := range stash.v6 {
-	// 	v6vars.Entries = append(v6vars.Entries, TemplateEntry{
-	// 		RangeStart:  r.RangeStart.String(),
-	// 		RangeEnd:    r.RangeEnd.String(),
-	// 		CountryCode: r.CountryCode,
-	// 	})
-	// }
-	//
-	// v4out := bufio.NewWriter(v4file)
-	// v6out := bufio.NewWriter(v6file)
-	//
-	// defer v4out.Flush()
-	// defer v6out.Flush()
-	//
-	// _ = tpl.ExecuteTemplate(v4out, "iprange", v4vars)
-	// _ = tpl.ExecuteTemplate(v6out, "iprange", v6vars)
+	fmt.Printf("V4 base64 size: %d, packed entries: %d, err: %v\n", len(b64), len(v4entries), err)
+	fmt.Printf("V6 base64 size: %d, packed entries: %d, err: %v\n", len(b64), len(v6entries), err)
+
+	_ = v4out.Flush()
+	_ = v6out.Flush()
 }
 
 func entriesToB64(entries []generated.AddrRangeCountry) (string, error) {
@@ -178,7 +151,6 @@ func entriesToB64(entries []generated.AddrRangeCountry) (string, error) {
 		return "", err
 	}
 
-	fmt.Printf("Raw bytes: %d\n", buf.Len())
 	return base64.StdEncoding.EncodeToString(buf.Bytes()), nil
 }
 

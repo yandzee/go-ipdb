@@ -37,6 +37,7 @@ function fetch_and_generate() {
   gzip -d <"$archive" >"$csv"
   rm "$archive"
 
+  rm ./generated/v*.go
   CSV_FILE="$csv" go generate ./...
 }
 
