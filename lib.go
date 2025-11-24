@@ -31,5 +31,19 @@ func LookupAddr(addr netip.Addr) string {
 }
 
 func bsearch(entries []generated.AddrRangeCountry, num types.Uint128) string {
-	idx := slices.BinarySearchFunc(entries, , func(e generated.AddrRangeCountry, ) int {})
+	idx, found := slices.BinarySearchFunc(entries, num, func(e generated.AddrRangeCountry, n types.Uint128) int {
+		rs, re := e.RangeStart.Compare(n), e.RangeEnd.Compare(n)
+
+		if rs <= 0 && re >= 0 {
+			return 0
+		}
+
+		return rs
+	})
+
+	if !found {
+		return ""
+	}
+
+	return entries[idx].CountryCode
 }
